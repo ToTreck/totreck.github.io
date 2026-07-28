@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>D6 – 3D кубик</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(ellipse at center, #1e1a2b 0%, #0e0b16 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Cinzel', 'Segoe UI', serif;
+            padding: 16px;
+            margin: 0;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 720px;
+            background: rgba(30, 26, 43, 0.8);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 30px 24px 36px;
+            border: 1px solid rgba(255, 215, 150, 0.12);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            letter-spacing: 6px;
+            color: #f0e6d3;
+            text-shadow: 0 0 20px rgba(255, 200, 100, 0.3);
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #b8a9c9;
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            margin-bottom: 18px;
+            border-bottom: 1px dashed rgba(255, 215, 150, 0.15);
+            padding-bottom: 12px;
+        }
+
+        #scene-container {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-width: 400px;
+            margin: 0 auto 16px;
+            border-radius: 28px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            background: transparent;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+            touch-action: manipulation;
+        }
+
+        #scene-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .result-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            font-size: 4.5rem;
+            font-weight: 800;
+            color: #f0e6d3;
+            text-shadow: 0 0 30px rgba(255, 200, 100, 0.7), 0 0 60px rgba(255, 150, 50, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-family: 'Cinzel', serif;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 1rem;
+            border-radius: 60px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 215, 150, 0.2);
+        }
+
+        .result-overlay.show {
+            opacity: 1;
+        }
+
+        .result-overlay.critical-success {
+            color: #ffd966;
+            text-shadow: 0 0 40px #ffb347, 0 0 80px #ff8c00;
+            border-color: #ffb347;
+        }
+
+        .result-overlay.critical-fail {
+            color: #ff6b6b;
+            text-shadow: 0 0 40px #ff2a2a, 0 0 80px #a00000;
+            border-color: #ff4d4d;
+        }
+
+        .roll-btn {
+            background: linear-gradient(145deg, #3d2e4a, #261e30);
+            border: none;
+            border-radius: 60px;
+            padding: 16px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #f0e6d3;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #0b0812, 0 12px 30px rgba(0, 0, 0, 0.6);
+            transition: all 0.08s linear;
+            border: 1px solid rgba(255, 215, 150, 0.15);
+            font-family: 'Cinzel', 'Segoe UI', serif;
+            width: 100%;
+            max-width: 280px;
+            margin: 0 auto 18px;
+            touch-action: manipulation;
+        }
+
+        .roll-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 0 #0b0812, 0 18px 40px rgba(0, 0, 0, 0.7);
+            border-color: rgba(255, 215, 150, 0.3);
+        }
+
+        .roll-btn:active:not(:disabled) {
+            transform: translateY(5px);
+            box-shadow: 0 3px 0 #0b0812, 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .roll-btn:disabled {
+            opacity: 0.5;
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #0b0812, 0 8px 20px rgba(0, 0, 0, 0.4);
+            cursor: not-allowed;
+        }
+
+        .history-section {
+            margin-top: 12px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 215, 150, 0.1);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .history-header span {
+            color: #b8a9c9;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        .clear-history {
+            background: none;
+            border: none;
+            color: #7a6a8a;
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-decoration: underline dotted;
+            padding: 4px 12px;
+            border-radius: 20px;
+            transition: color 0.2s, background 0.2s;
+            font-family: inherit;
+        }
+
+        .clear-history:hover {
+            color: #f0e6d3;
+            background: rgba(255, 215, 150, 0.08);
+        }
+
+        .history-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            min-height: 36px;
+            padding: 4px 0;
+        }
+
+        .history-item {
+            background: rgba(255, 215, 150, 0.08);
+            border: 1px solid rgba(255, 215, 150, 0.1);
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #d4c8d9;
+            animation: fade-in 0.25s ease;
+            backdrop-filter: blur(2px);
+            transition: all 0.2s;
+        }
+
+        .history-item.crit-success {
+            background: rgba(255, 180, 50, 0.2);
+            border-color: #ffb347;
+            color: #ffd966;
+        }
+
+        .history-item.crit-fail {
+            background: rgba(255, 0, 0, 0.15);
+            border-color: #ff4d4d;
+            color: #ff6b6b;
+        }
+
+        .empty-history {
+            color: #5a4a6a;
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        @keyframes fade-in {
+            0% {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .app-container {
+                padding: 20px 16px 24px;
+                border-radius: 32px;
+            }
+            h1 {
+                font-size: 1.6rem;
+            }
+            .result-overlay {
+                font-size: 3rem;
+            }
+            .roll-btn {
+                font-size: 1rem;
+                padding: 14px 20px;
+                max-width: 220px;
+            }
+            .history-item {
+                font-size: 0.85rem;
+                padding: 4px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h1>🎲 D6</h1>
+        <div class="subtitle">Классический кубик</div>
+
+        <div id="scene-container">
+            <div class="result-overlay" id="resultOverlay">6</div>
+        </div>
+
+        <button class="roll-btn" id="rollBtn">🎲 Бросить</button>
+
+        <div class="history-section">
+            <div class="history-header">
+                <span>📜 История бросков</span>
+                <button class="clear-history" id="clearHistory">Очистить</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <span class="empty-history">— ещё не бросали —</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const container = document.getElementById('scene-container');
+            const overlay = document.getElementById('resultOverlay');
+            const rollBtn = document.getElementById('rollBtn');
+            const historyList = document.getElementById('historyList');
+            const clearHistoryBtn = document.getElementById('clearHistory');
+
+            const MAX_HISTORY = 30;
+            let history = [];
+            let isRolling = false;
+
+            // === ИНИЦИАЛИЗАЦИЯ THREE.JS ===
+            const scene = new THREE.Scene();
+            scene.background = null;
+
+            const camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 4.5);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            // Свет
+            const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+            mainLight.position.set(2, 5, 3);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 512;
+            mainLight.shadow.mapSize.height = 512;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x4488ff, 0.4);
+            fillLight.position.set(-3, 0, 2);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xffaa66, 0.5);
+            rimLight.position.set(-1, -2, -4);
+            scene.add(rimLight);
+
+            // === СОЗДАНИЕ ТЕКСТУР ДЛЯ ГРАНЕЙ ===
+            function createFaceTexture(pips) {
+                const size = 256;
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+
+                // Закруглённый белый фон
+                const radius = 20;
+                const x = 0,
+                    y = 0,
+                    w = size,
+                    h = size;
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + w - radius, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+                ctx.lineTo(x + w, y + h - radius);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+                ctx.lineTo(x + radius, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+                ctx.lineTo(x, y + radius);
+                ctx.quadraticCurveTo(x, y, x + radius, y);
+                ctx.closePath();
+                ctx.fillStyle = '#f5eee6';
+                ctx.fill();
+                ctx.strokeStyle = '#d4c4b0';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Рисуем точки (пипсы)
+                const dotRadius = 16;
+                const dotColor = '#1a1a1a';
+                const positions = getPipPositions(pips, size);
+
+                ctx.fillStyle = dotColor;
+                for (const pos of positions) {
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, dotRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            function getPipPositions(pips, size) {
+                const center = size / 2;
+                const offset = size * 0.25;
+                const positions = [];
+
+                switch (pips) {
+                    case 1:
+                        positions.push({ x: center, y: center });
+                        break;
+                    case 2:
+                        positions.push({ x: center - offset, y: center - offset });
+                        positions.push({ x: center + offset, y: center + offset });
+                        break;
+                    case 3:
+                        positions.push({ x: center - offset, y: center - offset });
+                        positions.push({ x: center, y: center });
+                        positions.push({ x: center + offset, y: center + offset });
+                        break;
+                    case 4:
+                        positions.push({ x: center - offset, y: center - offset });
+                        positions.push({ x: center + offset, y: center - offset });
+                        positions.push({ x: center - offset, y: center + offset });
+                        positions.push({ x: center + offset, y: center + offset });
+                        break;
+                    case 5:
+                        positions.push({ x: center - offset, y: center - offset });
+                        positions.push({ x: center + offset, y: center - offset });
+                        positions.push({ x: center, y: center });
+                        positions.push({ x: center - offset, y: center + offset });
+                        positions.push({ x: center + offset, y: center + offset });
+                        break;
+                    case 6:
+                        positions.push({ x: center - offset, y: center - offset * 0.5 });
+                        positions.push({ x: center + offset, y: center - offset * 0.5 });
+                        positions.push({ x: center - offset, y: center });
+                        positions.push({ x: center + offset, y: center });
+                        positions.push({ x: center - offset, y: center + offset * 0.5 });
+                        positions.push({ x: center + offset, y: center + offset * 0.5 });
+                        break;
+                    default:
+                        break;
+                }
+                return positions;
+            }
+
+            // Материалы для 6 граней (порядок: +x, -x, +y, -y, +z, -z)
+            const materials = [];
+            // Для куба стандартный порядок: right, left, up, down, front, back
+            // Мы просто привяжем числа: 1, 6, 2, 5, 3, 4 (можно любой порядок)
+            // Обычно на кубике: 1 напротив 6, 2 напротив 5, 3 напротив 4.
+            // Расположим: +x: 2, -x: 5, +y: 3, -y: 4, +z: 1, -z: 6
+            const faceValues = [2, 5, 3, 4, 1, 6];
+            for (const val of faceValues) {
+                const tex = createFaceTexture(val);
+                const mat = new THREE.MeshStandardMaterial({
+                    map: tex,
+                    roughness: 0.5,
+                    metalness: 0.05,
+                    color: 0xf0f0f0,
+                });
+                materials.push(mat);
+            }
+
+            const geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+            const dice = new THREE.Mesh(geometry, materials);
+            dice.castShadow = true;
+            dice.receiveShadow = true;
+            scene.add(dice);
+
+            // Рёбра (для красоты)
+            const edges = new THREE.EdgesGeometry(geometry);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x8a7a6a, transparent: true, opacity: 0.25 });
+            const wireframe = new THREE.LineSegments(edges, lineMaterial);
+            dice.add(wireframe);
+
+            // Лёгкая аура
+            const glowGeometry = new THREE.BoxGeometry(2.0, 2.0, 2.0);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0x6655aa,
+                transparent: true,
+                opacity: 0.05,
+                wireframe: true,
+            });
+            const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+            dice.add(glowMesh);
+
+            // === АНИМАЦИЯ ВРАЩЕНИЯ (фоновая) ===
+            let autoRotate = true;
+
+            function animate() {
+                if (autoRotate && !isRolling) {
+                    dice.rotation.x += 0.003;
+                    dice.rotation.y += 0.005;
+                }
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            // === ФУНКЦИЯ БРОСКА ===
+            function performRoll() {
+                if (isRolling) return;
+                isRolling = true;
+                rollBtn.disabled = true;
+                overlay.classList.remove('show', 'critical-success', 'critical-fail');
+
+                const result = Math.floor(Math.random() * 6) + 1;
+                const startRotX = dice.rotation.x;
+                const startRotY = dice.rotation.y;
+                const targetRotX = startRotX + (Math.random() * 4 + 2) * Math.PI;
+                const targetRotY = startRotY + (Math.random() * 4 + 2) * Math.PI;
+
+                const duration = 800;
+                const startTime = performance.now();
+                autoRotate = false;
+
+                function animateRoll(time) {
+                    const progress = Math.min((time - startTime) / duration, 1);
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    dice.rotation.x = startRotX + (targetRotX - startRotX) * ease;
+                    dice.rotation.y = startRotY + (targetRotY - startRotY) * ease;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRoll);
+                    } else {
+                        dice.rotation.x = targetRotX;
+                        dice.rotation.y = targetRotY;
+                        showResult(result);
+                        setTimeout(() => { autoRotate = true; }, 600);
+                        isRolling = false;
+                        rollBtn.disabled = false;
+                    }
+                }
+                requestAnimationFrame(animateRoll);
+            }
+
+            function showResult(value) {
+                overlay.textContent = value;
+                overlay.classList.add('show');
+                if (value === 6) {
+                    overlay.classList.add('critical-success');
+                } else if (value === 1) {
+                    overlay.classList.add('critical-fail');
+                }
+                addToHistory(value);
+            }
+
+            // === ИСТОРИЯ ===
+            function addToHistory(value) {
+                history.push(value);
+                if (history.length > MAX_HISTORY * 2) history = history.slice(-MAX_HISTORY);
+                renderHistory();
+            }
+
+            function renderHistory() {
+                if (history.length === 0) {
+                    historyList.innerHTML = '<span class="empty-history">— ещё не бросали —</span>';
+                    return;
+                }
+                let html = '';
+                const items = history.slice(-MAX_HISTORY);
+                for (const val of items) {
+                    let cls = 'history-item';
+                    if (val === 6) cls += ' crit-success';
+                    else if (val === 1) cls += ' crit-fail';
+                    html += `<span class="${cls}">${val}</span>`;
+                }
+                historyList.innerHTML = html;
+            }
+
+            function clearHistory() {
+                history = [];
+                renderHistory();
+                overlay.classList.remove('show', 'critical-success', 'critical-fail');
+            }
+
+            // === ОБРАБОТЧИКИ ===
+            rollBtn.addEventListener('click', performRoll);
+            container.addEventListener('click', performRoll);
+            container.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    performRoll();
+                }
+            });
+            container.setAttribute('tabindex', '0');
+            container.setAttribute('role', 'button');
+            container.setAttribute('aria-label', 'Бросить кубик');
+
+            clearHistoryBtn.addEventListener('click', clearHistory);
+
+            // === АДАПТАЦИЯ РАЗМЕРА ===
+            function resizeRenderer() {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                if (width > 0 && height > 0) {
+                    renderer.setSize(width, height);
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+                }
+            }
+            window.addEventListener('resize', resizeRenderer);
+            setTimeout(resizeRenderer, 50);
+
+            // === ИНИЦИАЛИЗАЦИЯ ===
+            overlay.textContent = '6';
+            overlay.classList.add('show');
+            overlay.classList.remove('critical-success');
+            console.log('🎲 D6 кубик загружен!');
+        })();
+    </script>
+
+</body>
+</html>
